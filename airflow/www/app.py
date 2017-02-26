@@ -20,6 +20,7 @@ from flask import Flask
 from flask_admin import Admin, base
 from flask_cache import Cache
 from flask_wtf.csrf import CsrfProtect
+
 csrf = CsrfProtect()
 
 import airflow
@@ -32,8 +33,25 @@ from airflow import settings
 from airflow import configuration
 
 
+class PrefixMiddleware(object):
+    def __init__(self, app, prefix=''):
+        self.app = app
+        self.prefix = prefix
+
+    def __call__(self, environ, start_response):
+
+        if environ['PATH_INFO'].startswith(self.prefix):
+            environ['PATH_INFO'] = environ['PATH_INFO'][len(self.prefix):]
+            environ['SCRIPT_NAME'] = self.prefix
+            return self.app(environ, start_response)
+        else:
+            start_response('404', [('Content-Type', 'text/plain')])
+            return ["This url does not belong to the app.".encode()]
+
+
 def create_app(config=None, testing=False):
     app = Flask(__name__)
+    app.wsgi_app = PrefixMiddleware(app.wsgi_app, prefix='/airflow')
     app.secret_key = configuration.get('webserver', 'SECRET_KEY')
     app.config['LOGIN_DISABLED'] = not configuration.getboolean('webserver', 'AUTHENTICATE')
 
@@ -79,7 +97,7 @@ def create_app(config=None, testing=False):
             models.SlaMiss,
             Session, name="SLA Misses", category="Browse"))
         av(vs.TaskInstanceModelView(models.TaskInstance,
-            Session, name="Task Instances", category="Browse"))
+                                    Session, name="Task Instances", category="Browse"))
         av(vs.LogModelView(
             models.Log, Session, name="Logs", category="Browse"))
         av(vs.JobModelView(
@@ -102,7 +120,7 @@ def create_app(config=None, testing=False):
             url='http://pythonhosted.org/airflow/'))
         admin.add_link(
             base.MenuLink(category='Docs',
-                name='Github',url='https://github.com/airbnb/airflow'))
+                          name='Github', url='https://github.com/airbnb/airflow'))
 
         av(vs.VersionView(name='Version', category="About"))
 
@@ -151,6 +169,7 @@ def create_app(config=None, testing=False):
             settings.Session.remove()
 
         return app
+
 
 app = None
 

@@ -54,7 +54,7 @@ class MetastoreBrowserView(BaseView, wwwutils.DataProfilingMixin):
         h = MySqlHook(METASTORE_MYSQL_CONN_ID)
         df = h.get_pandas_df(sql)
         df.db = (
-            '<a href="/admin/metastorebrowserview/db/?db=' +
+            '<a href="/airflow/admin/metastorebrowserview/db/?db=' +
             df.db + '">' + df.db + '</a>')
         table = df.to_html(
             classes="table table-striped table-bordered table-hover",

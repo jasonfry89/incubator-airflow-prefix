@@ -57,7 +57,7 @@
                 <!-- Column 1: Edit dag -->
                 <td class="text-center" style="width:10px;">
                     {% if dag_id in orm_dags %}
-                    <a href="/admin/dagmodel/edit/?id={{ dag_id }}" title="Info">
+                    <a href="/airflow/admin/dagmodel/edit/?id={{ dag_id }}" title="Info">
                         <span class="glyphicon glyphicon-edit" aria-hidden="true"></span>
                     </a>
                     {% endif %}
@@ -88,7 +88,7 @@
                 <!-- Column 4: Dag Schedule -->
                 <td>
                     {% if dag_id in webserver_dags %}
-                    <a class="label label-default schedule {{ dag.dag_id }}" href="/admin/dagrun/?flt2_dag_id_equals={{ dag.dag_id }}">
+                    <a class="label label-default schedule {{ dag.dag_id }}" href="/airflow/admin/dagrun/?flt2_dag_id_equals={{ dag.dag_id }}">
                         {{ dag.schedule_interval }}
                     </a>
                     {% endif %}
@@ -171,7 +171,7 @@
                 </a>
 
                 <!-- Logs -->
-                <a href="/admin/log/?sort=1&amp;desc=1&amp;flt1_dag_id_equals={{ dag.dag_id }}" title="Logs">
+                <a href="/airflow/admin/log/?sort=1&amp;desc=1&amp;flt1_dag_id_equals={{ dag.dag_id }}" title="Logs">
                     <span class="glyphicon glyphicon-align-justify" aria-hidden="true"></span>
                 </a>
                 {% endif %}

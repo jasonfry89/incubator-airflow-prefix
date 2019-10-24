@@ -1,29 +1,33 @@
-Dear Airflow Maintainers,
+Make sure you have checked _all_ steps below.
 
-Please accept this PR that addresses the following issues:
-- *(replace with a link to AIRFLOW-X)*
+### Jira
 
-Per Apache guidelines you need to create a [Jira issue](https://issues.apache.org/jira/browse/AIRFLOW/).
+- [ ] My PR addresses the following [Airflow Jira](https://issues.apache.org/jira/browse/AIRFLOW/) issues and references them in the PR title. For example, "\[AIRFLOW-XXX\] My Airflow PR"
+  - https://issues.apache.org/jira/browse/AIRFLOW-XXX
+  - In case you are fixing a typo in the documentation you can prepend your commit with \[AIRFLOW-XXX\], code changes always need a Jira issue.
+  - In case you are proposing a fundamental code change, you need to create an Airflow Improvement Proposal ([AIP](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Improvements+Proposals)).
+  - In case you are adding a dependency, check if the license complies with the [ASF 3rd Party License Policy](https://www.apache.org/legal/resolved.html#category-x).
 
-Testing Done:
-- Unittests are required, if you do not include new unit tests please
-specify why you think this is not required. We like to improve our
-coverage so a non existing test is even a better reason to include one.
+### Description
 
-Reminders for contributors (REQUIRED!):
-* Your PR's title must reference an issue on 
-[Airflow's JIRA](https://issues.apache.org/jira/browse/AIRFLOW/). 
-For example, a PR called "[AIRFLOW-1] My Amazing PR" would close JIRA 
-issue #1. Please open a new issue if required!
+- [ ] Here are some details about my PR, including screenshots of any UI changes:
 
-* For all PRs with UI changes, you must provide screenshots. If the UI changes are not obvious, either annotate the images or provide before/after screenshots.
+### Tests
 
-* Please squash your commits when possible and follow the [How to write a good git commit message](http://chris.beams.io/posts/git-commit/). 
-Summarized as follows:
-  1. Separate subject from body with a blank line
-  2. Limit the subject line to 50 characters
-  3. Do not end the subject line with a period
-  4. Use the imperative mood in the subject line (add, not adding)
-  5. Wrap the body at 72 characters
-  6. Use the body to explain what and why vs. how
+- [ ] My PR adds the following unit tests __OR__ does not need testing for this extremely good reason:
 
+### Commits
+
+- [ ] My commits all reference Jira issues in their subject lines, and I have squashed multiple commits if they address the same issue. In addition, my commits follow the guidelines from "[How to write a good git commit message](http://chris.beams.io/posts/git-commit/)":
+  1. Subject is separated from body by a blank line
+  1. Subject is limited to 50 characters (not including Jira issue reference)
+  1. Subject does not end with a period
+  1. Subject uses the imperative mood ("add", not "adding")
+  1. Body wraps at 72 characters
+  1. Body explains "what" and "why", not "how"
+
+### Documentation
+
+- [ ] In case of new functionality, my PR adds documentation that describes how to use it.
+  - All the public functions and the classes in the PR contain docstrings that explain what it does
+  - If you implement backwards incompatible changes, please leave a note in the [Updating.md](https://github.com/apache/airflow/blob/master/UPDATING.md) so we can assign it to a appropriate release

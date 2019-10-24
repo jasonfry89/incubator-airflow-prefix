@@ -1,3 +1,22 @@
+ .. Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+ ..   http://www.apache.org/licenses/LICENSE-2.0
+
+ .. Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+
+
 
 Tutorial
 ================
@@ -15,7 +34,7 @@ complicated, a line by line explanation follows below.
 
     """
     Code that goes along with the Airflow tutorial located at:
-    https://github.com/airbnb/airflow/blob/master/airflow/example_dags/tutorial.py
+    https://github.com/apache/airflow/blob/master/airflow/example_dags/tutorial.py
     """
     from airflow import DAG
     from airflow.operators.bash_operator import BashOperator
@@ -23,10 +42,10 @@ complicated, a line by line explanation follows below.
 
 
     default_args = {
-        'owner': 'airflow',
+        'owner': 'Airflow',
         'depends_on_past': False,
         'start_date': datetime(2015, 6, 1),
-        'email': ['airflow@airflow.com'],
+        'email': ['airflow@example.com'],
         'email_on_failure': False,
         'email_on_retry': False,
         'retries': 1,
@@ -37,7 +56,7 @@ complicated, a line by line explanation follows below.
         # 'end_date': datetime(2016, 1, 1),
     }
 
-    dag = DAG('tutorial', default_args=default_args)
+    dag = DAG('tutorial', default_args=default_args, schedule_interval=timedelta(days=1))
 
     # t1, t2 and t3 are examples of tasks created by instantiating operators
     t1 = BashOperator(
@@ -114,10 +133,10 @@ of default parameters that we can use when creating tasks.
     from datetime import datetime, timedelta
 
     default_args = {
-        'owner': 'airflow',
+        'owner': 'Airflow',
         'depends_on_past': False,
         'start_date': datetime(2015, 6, 1),
-        'email': ['airflow@airflow.com'],
+        'email': ['airflow@example.com'],
         'email_on_failure': False,
         'email_on_retry': False,
         'retries': 1,
@@ -129,7 +148,7 @@ of default parameters that we can use when creating tasks.
     }
 
 For more information about the BaseOperator's parameters and what they do,
-refer to the :py:class:``airflow.models.BaseOperator`` documentation.
+refer to the :py:class:`airflow.models.BaseOperator` documentation.
 
 Also, note that you could easily define different sets of arguments that
 would serve different purposes. An example of that would be to have
@@ -147,7 +166,7 @@ define a ``schedule_interval`` of 1 day for the DAG.
 .. code:: python
 
     dag = DAG(
-        'tutorial', default_args=default_args, schedule_interval=timedelta(1))
+        'tutorial', default_args=default_args, schedule_interval=timedelta(days=1))
 
 Tasks
 -----
@@ -195,7 +214,8 @@ templates.
 This tutorial barely scratches the surface of what you can do with
 templating in Airflow, but the goal of this section is to let you know
 this feature exists, get you familiar with double curly brackets, and
-point to the most common template variable: ``{{ ds }}``.
+point to the most common template variable: ``{{ ds }}`` (today's "date
+stamp").
 
 .. code:: python
 
@@ -231,28 +251,51 @@ different languages, and general flexibility in structuring pipelines. It is
 also possible to define your ``template_searchpath`` as pointing to any folder
 locations in the DAG constructor call.
 
+Using that same DAG constructor call, it is possible to define
+``user_defined_macros`` which allow you to specify your own variables.
+For example, passing ``dict(foo='bar')`` to this argument allows you
+to use ``{{ foo }}`` in your templates. Moreover, specifying
+``user_defined_filters`` allow you to register you own filters. For example,
+passing ``dict(hello=lambda name: 'Hello %s' % name)`` to this argument allows
+you to use ``{{ 'world' | hello }}`` in your templates. For more information
+regarding custom filters have a look at the
+`Jinja Documentation <http://jinja.pocoo.org/docs/dev/api/#writing-filters>`_
+
 For more information on the variables and macros that can be referenced
-in templates, make sure to read through the :ref:`macros` section
+in templates, make sure to read through the :doc:`macros-ref`
 
 Setting up Dependencies
 -----------------------
-We have two simple tasks that do not depend on each other. Here's a few ways
+We have tasks ``t1``, ``t2`` and ``t3`` that do not depend on each other. Here's a few ways
 you can define dependencies between them:
 
 .. code:: python
 
-    t2.set_upstream(t1)
+    t1.set_downstream(t2)
 
     # This means that t2 will depend on t1
-    # running successfully to run
-    # It is equivalent to
-    # t1.set_downstream(t2)
+    # running successfully to run.
+    # It is equivalent to:
+    t2.set_upstream(t1)
 
-    t3.set_upstream(t1)
+    # The bit shift operator can also be
+    # used to chain operations:
+    t1 >> t2
 
-    # all of this is equivalent to
-    # dag.set_dependency('print_date', 'sleep')
-    # dag.set_dependency('print_date', 'templated')
+    # And the upstream dependency with the
+    # bit shift operator:
+    t2 << t1
+
+    # Chaining multiple dependencies becomes
+    # concise with the bit shift operator:
+    t1 >> t2 >> t3
+
+    # A list of tasks can also be set as
+    # dependencies. These operations
+    # all have the same effect:
+    t1.set_downstream([t2, t3])
+    t1 >> [t2, t3]
+    [t2, t3] << t1
 
 Note that when executing your script, Airflow will raise exceptions when
 it finds cycles in your DAG or when a dependency is referenced more
@@ -266,8 +309,8 @@ something like this:
 .. code:: python
 
     """
-    Code that goes along with the Airflow located at:
-    http://airflow.readthedocs.org/en/latest/tutorial.html
+    Code that goes along with the Airflow tutorial located at:
+    https://github.com/apache/airflow/blob/master/airflow/example_dags/tutorial.py
     """
     from airflow import DAG
     from airflow.operators.bash_operator import BashOperator
@@ -275,10 +318,10 @@ something like this:
 
 
     default_args = {
-        'owner': 'airflow',
+        'owner': 'Airflow',
         'depends_on_past': False,
         'start_date': datetime(2015, 6, 1),
-        'email': ['airflow@airflow.com'],
+        'email': ['airflow@example.com'],
         'email_on_failure': False,
         'email_on_retry': False,
         'retries': 1,
@@ -290,7 +333,7 @@ something like this:
     }
 
     dag = DAG(
-        'tutorial', default_args=default_args, schedule_interval=timedelta(1))
+        'tutorial', default_args=default_args, schedule_interval=timedelta(days=1))
 
     # t1, t2 and t3 are examples of tasks created by instantiating operators
     t1 = BashOperator(
@@ -327,8 +370,10 @@ Testing
 Running the Script
 ''''''''''''''''''
 
-Time to run some tests. First let's make sure that the pipeline
-parses. Let's assume we're saving the code from the previous step in
+Time to run some tests. First, let's make sure the pipeline
+is parsed successfully.
+
+Let's assume we're saving the code from the previous step in
 ``tutorial.py`` in the DAGs folder referenced in your ``airflow.cfg``.
 The default location for your DAGs is ``~/airflow/dags``.
 
@@ -347,13 +392,13 @@ Let's run a few commands to validate this script further.
 .. code-block:: bash
 
     # print the list of active DAGs
-    airflow list_dags
+    airflow dags list
 
-    # prints the list of tasks the "tutorial" dag_id
-    airflow list_tasks tutorial
+    # prints the list of tasks in the "tutorial" DAG
+    airflow tasks list tutorial
 
-    # prints the hierarchy of tasks in the tutorial DAG
-    airflow list_tasks tutorial --tree
+    # prints the hierarchy of tasks in the "tutorial" DAG
+    airflow tasks list tutorial --tree
 
 
 Testing
@@ -367,10 +412,10 @@ scheduler running your task or dag at a specific date + time:
     # command layout: command subcommand dag_id task_id date
 
     # testing print_date
-    airflow test tutorial print_date 2015-06-01
+    airflow tasks test tutorial print_date 2015-06-01
 
     # testing sleep
-    airflow test tutorial sleep 2015-06-01
+    airflow tasks test tutorial sleep 2015-06-01
 
 Now remember what we did with templating earlier? See how this template
 gets rendered and executed by running this command:
@@ -378,12 +423,12 @@ gets rendered and executed by running this command:
 .. code-block:: bash
 
     # testing templated
-    airflow test tutorial templated 2015-06-01
+    airflow tasks test tutorial templated 2015-06-01
 
 This should result in displaying a verbose log of events and ultimately
 running your bash command and printing the result.
 
-Note that the ``airflow test`` command runs task instances locally, outputs
+Note that the ``airflow tasks test`` command runs task instances locally, outputs
 their log to stdout (on screen), doesn't bother with dependencies, and
 doesn't communicate state (running, success, failed, ...) to the database.
 It simply allows testing a single task instance.
@@ -409,7 +454,7 @@ which are used to populate the run schedule with task instances from this dag.
     # airflow webserver --debug &
 
     # start your backfill on a date range
-    airflow backfill tutorial -s 2015-06-01 -e 2015-06-07
+    airflow dags backfill tutorial -s 2015-06-01 -e 2015-06-07
 
 What's Next?
 -------------

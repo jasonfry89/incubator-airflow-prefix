@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 """current schema
 
@@ -20,16 +25,17 @@ Create Date: 2015-08-18 16:35:00.883495
 
 """
 
+import sqlalchemy as sa
+from alembic import op
+from sqlalchemy import func
+from sqlalchemy.engine.reflection import Inspector
+
 # revision identifiers, used by Alembic.
 revision = 'e3a246e0dc1'
 down_revision = None
 branch_labels = None
 depends_on = None
 
-from alembic import op
-import sqlalchemy as sa
-from sqlalchemy import func
-from sqlalchemy.engine.reflection import Inspector
 
 def upgrade():
     conn = op.get_bind()
@@ -104,13 +110,6 @@ def upgrade():
             'job',
             ['job_type', 'latest_heartbeat'],
             unique=False
-        )
-    if 'known_event_type' not in tables:
-        op.create_table(
-            'known_event_type',
-            sa.Column('id', sa.Integer(), nullable=False),
-            sa.Column('know_event_type', sa.String(length=200), nullable=True),
-            sa.PrimaryKeyConstraint('id')
         )
     if 'log' not in tables:
         op.create_table(
@@ -222,25 +221,9 @@ def upgrade():
             sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),
             sa.PrimaryKeyConstraint('id')
         )
-    if 'known_event' not in tables:
-        op.create_table(
-            'known_event',
-            sa.Column('id', sa.Integer(), nullable=False),
-            sa.Column('label', sa.String(length=200), nullable=True),
-            sa.Column('start_date', sa.DateTime(), nullable=True),
-            sa.Column('end_date', sa.DateTime(), nullable=True),
-            sa.Column('user_id', sa.Integer(), nullable=True),
-            sa.Column('known_event_type_id', sa.Integer(), nullable=True),
-            sa.Column('description', sa.Text(), nullable=True),
-            sa.ForeignKeyConstraint(['known_event_type_id'],
-                                    ['known_event_type.id'], ),
-            sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),
-            sa.PrimaryKeyConstraint('id')
-        )
     if 'xcom' not in tables:
         op.create_table(
             'xcom',
-            sa.Column('id', sa.Integer(), nullable=False),
             sa.Column('key', sa.String(length=512), nullable=True),
             sa.Column('value', sa.PickleType(), nullable=True),
             sa.Column(
@@ -251,12 +234,11 @@ def upgrade():
             sa.Column('execution_date', sa.DateTime(), nullable=False),
             sa.Column('task_id', sa.String(length=250), nullable=False),
             sa.Column('dag_id', sa.String(length=250), nullable=False),
-            sa.PrimaryKeyConstraint('id')
+            sa.PrimaryKeyConstraint('dag_id', 'task_id', 'execution_date', 'key')
         )
 
 
 def downgrade():
-    op.drop_table('known_event')
     op.drop_table('chart')
     op.drop_table('variable')
     op.drop_table('user')
@@ -267,7 +249,6 @@ def downgrade():
     op.drop_table('slot_pool')
     op.drop_table('sla_miss')
     op.drop_table('log')
-    op.drop_table('known_event_type')
     op.drop_index('job_type_heart', table_name='job')
     op.drop_table('job')
     op.drop_table('import_error')

@@ -1,26 +1,32 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 import time
-import logging
 
-from airflow.hooks.base_hook import BaseHook
+from datadog import api, initialize
+
 from airflow.exceptions import AirflowException
-from datadog import initialize, api
+from airflow.hooks.base_hook import BaseHook
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-class DatadogHook(BaseHook):
+class DatadogHook(BaseHook, LoggingMixin):
     """
     Uses datadog API to send metrics of practically anything measurable,
     so it's possible to track # of db records inserted/deleted, records read
@@ -30,9 +36,8 @@ class DatadogHook(BaseHook):
     Airflow runs.
 
     :param datadog_conn_id: The connection to datadog, containing metadata for api keys.
-    :param datadog_conn_id: string
+    :param datadog_conn_id: str
     """
-
     def __init__(self, datadog_conn_id='datadog_default'):
         conn = self.get_connection(datadog_conn_id)
         self.api_key = conn.extra_dejson.get('api_key', None)
@@ -44,38 +49,39 @@ class DatadogHook(BaseHook):
         self.host = conn.host
 
         if self.api_key is None:
-            raise AirflowException("api_key must be specified in the Datadog connection details")
-        if self.app_key is None:
-            raise AirflowException("app_key must be specified in the Datadog connection details")
+            raise AirflowException("api_key must be specified in the "
+                                   "Datadog connection details")
 
-        logging.info("Setting up api keys for datadog")
-        options = {
-            'api_key': self.api_key,
-            'app_key': self.app_key
-        }
-        initialize(**options)
+        self.log.info("Setting up api keys for Datadog")
+        initialize(api_key=self.api_key, app_key=self.app_key)
 
     def validate_response(self, response):
         if response['status'] != 'ok':
-            logging.error("Data dog returned: " + response)
-            raise AirflowException("Error status received from datadog")
+            self.log.error("Datadog returned: %s", response)
+            raise AirflowException("Error status received from Datadog")
 
-    def send_metric(self, metric_name, datapoint, tags=None):
+    def send_metric(self, metric_name, datapoint, tags=None, type_=None, interval=None):
         """
         Sends a single datapoint metric to DataDog
 
         :param metric_name: The name of the metric
-        :type metric_name: string
+        :type metric_name: str
         :param datapoint: A single integer or float related to the metric
-        :type datapoint: integer or float
+        :type datapoint: int or float
         :param tags: A list of tags associated with the metric
         :type tags: list
+        :param type_: Type of your metric: gauge, rate, or count
+        :type type_: str
+        :param interval: If the type of the metric is rate or count, define the corresponding interval
+        :type interval: int
         """
         response = api.Metric.send(
             metric=metric_name,
             points=datapoint,
             host=self.host,
-            tags=tags)
+            tags=tags,
+            type=type_,
+            interval=interval)
 
         self.validate_response(response)
         return response
@@ -85,11 +91,11 @@ class DatadogHook(BaseHook):
                      from_seconds_ago,
                      to_seconds_ago):
         """
-        Queries datadog for a specific metric, potentially with some function applied to it
-        and returns the results.
+        Queries datadog for a specific metric, potentially with some
+        function applied to it and returns the results.
 
         :param query: The datadog query to execute (see datadog docs)
-        :type query: string
+        :type query: str
         :param from_seconds_ago: How many seconds ago to start querying for.
         :type from_seconds_ago: int
         :param to_seconds_ago: Up to how many seconds ago to query for.
@@ -105,31 +111,48 @@ class DatadogHook(BaseHook):
         self.validate_response(response)
         return response
 
-    def post_event(self, title, text, tags=None, alert_type=None, aggregation_key=None):
+    def post_event(self, title, text, aggregation_key=None, alert_type=None, date_happened=None,
+                   handle=None, priority=None, related_event_id=None, tags=None, device_name=None):
         """
         Posts an event to datadog (processing finished, potentially alerts, other issues)
-        Think about this as a means to maintain persistence of alerts, rather than alerting
-        itself.
+        Think about this as a means to maintain persistence of alerts, rather than
+        alerting itself.
 
         :param title: The title of the event
-        :type title: string
+        :type title: str
         :param text: The body of the event (more information)
-        :type text: string
-        :param tags: List of string tags to apply to the event
-        :type tags: list
+        :type text: str
+        :param aggregation_key: Key that can be used to aggregate this event in a stream
+        :type aggregation_key: str
         :param alert_type: The alert type for the event, one of
             ["error", "warning", "info", "success"]
-        :type alert_type: string
-        :param aggregation_key: Key that can be used to aggregate this event in a stream
-        :type aggregation_key: string
+        :type alert_type: str
+        :param date_happened: POSIX timestamp of the event; defaults to now
+        :type date_happened: int
+        :handle: User to post the event as; defaults to owner of the application key used
+            to submit.
+        :param handle: str
+        :param priority: Priority to post the event as. ("normal" or "low", defaults to "normal")
+        :type priority: str
+        :param related_event_id: Post event as a child of the given event
+        :type related_event_id: id
+        :param tags: List of tags to apply to the event
+        :type tags: list[str]
+        :param device_name: device_name to post the event with
+        :type device_name: list
         """
         response = api.Event.create(
             title=title,
             text=text,
-            host=self.host,
-            tags=tags,
-            alert_type=alert_type,
             aggregation_key=aggregation_key,
+            alert_type=alert_type,
+            date_happened=date_happened,
+            handle=handle,
+            priority=priority,
+            related_event_id=related_event_id,
+            tags=tags,
+            host=self.host,
+            device_name=device_name,
             source_type_name=self.source_type_name)
 
         self.validate_response(response)

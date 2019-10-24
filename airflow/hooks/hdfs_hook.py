@@ -1,39 +1,52 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+"""Hook for HDFS operations"""
+from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow import configuration
 
 try:
-    snakebite_imported = True
-    from snakebite.client import Client, HAClient, Namenode, AutoConfigClient
+    from snakebite.client import Client, HAClient, Namenode, AutoConfigClient  # pylint: disable=syntax-error
+    snakebite_loaded = True
 except ImportError:
-    snakebite_imported = False
-
-from airflow.exceptions import AirflowException
+    snakebite_loaded = False
 
 
 class HDFSHookException(AirflowException):
-    pass
+    """Exception specific for HDFS"""
 
 
+# noinspection PyAbstractClass
 class HDFSHook(BaseHook):
     """
     Interact with HDFS. This class is a wrapper around the snakebite library.
+
+    :param hdfs_conn_id: Connection id to fetch connection info
+    :type hdfs_conn_id: str
+    :param proxy_user: effective user for HDFS operations
+    :type proxy_user: str
+    :param autoconfig: use snakebite's automatically configured client
+    :type autoconfig: bool
     """
-    def __init__(self, hdfs_conn_id='hdfs_default', proxy_user=None):
-        if not snakebite_imported:
+    def __init__(self, hdfs_conn_id='hdfs_default', proxy_user=None,
+                 autoconfig=False):
+        if not snakebite_loaded:
             raise ImportError(
                 'This HDFSHook implementation requires snakebite, but '
                 'snakebite is not compatible with Python 3 '
@@ -41,33 +54,47 @@ class HDFSHook(BaseHook):
                 'this hook  -- or help by submitting a PR!')
         self.hdfs_conn_id = hdfs_conn_id
         self.proxy_user = proxy_user
+        self.autoconfig = autoconfig
 
     def get_conn(self):
         """
         Returns a snakebite HDFSClient object.
         """
-        connections = self.get_connections(self.hdfs_conn_id)
-        use_sasl = False
-        if configuration.get('core', 'security') == 'kerberos':
-            use_sasl = True
+        # When using HAClient, proxy_user must be the same, so is ok to always
+        # take the first.
+        effective_user = self.proxy_user
+        autoconfig = self.autoconfig
+        use_sasl = conf.get('core', 'security') == 'kerberos'
 
-        # When using HAClient, proxy_user must be the same, so is ok to always take the first.
-        effective_user = self.proxy_user or connections[0].login
-        if len(connections) == 1:
-            autoconfig = connections[0].extra_dejson.get('autoconfig', False)
-            if autoconfig:
-                client = AutoConfigClient(effective_user=effective_user, use_sasl=use_sasl)
-            else:
-                hdfs_namenode_principal = connections[0].extra_dejson.get('hdfs_namenode_principal')
-                client = Client(connections[0].host, connections[0].port,
-                                effective_user=effective_user, use_sasl=use_sasl,
-                                hdfs_namenode_principal=hdfs_namenode_principal)
+        try:
+            connections = self.get_connections(self.hdfs_conn_id)
+
+            if not effective_user:
+                effective_user = connections[0].login
+            if not autoconfig:
+                autoconfig = connections[0].extra_dejson.get('autoconfig',
+                                                             False)
+            hdfs_namenode_principal = connections[0].extra_dejson.get(
+                'hdfs_namenode_principal')
+        except AirflowException:
+            if not autoconfig:
+                raise
+
+        if autoconfig:
+            # will read config info from $HADOOP_HOME conf files
+            client = AutoConfigClient(effective_user=effective_user,
+                                      use_sasl=use_sasl)
+        elif len(connections) == 1:
+            client = Client(connections[0].host, connections[0].port,
+                            effective_user=effective_user, use_sasl=use_sasl,
+                            hdfs_namenode_principal=hdfs_namenode_principal)
         elif len(connections) > 1:
-            hdfs_namenode_principal = connections[0].extra_dejson.get('hdfs_namenode_principal')
-            nn = [Namenode(conn.host, conn.port) for conn in connections]
-            client = HAClient(nn, effective_user=effective_user, use_sasl=use_sasl,
+            name_node = [Namenode(conn.host, conn.port) for conn in connections]
+            client = HAClient(name_node, effective_user=effective_user,
+                              use_sasl=use_sasl,
                               hdfs_namenode_principal=hdfs_namenode_principal)
         else:
-            raise HDFSHookException("conn_id doesn't exist in the repository")
+            raise HDFSHookException("conn_id doesn't exist in the repository "
+                                    "and autoconfig is not specified")
 
         return client

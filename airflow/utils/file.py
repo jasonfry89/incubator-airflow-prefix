@@ -1,26 +1,27 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-from __future__ import absolute_import
-from __future__ import unicode_literals
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 import errno
 import os
 import shutil
-from tempfile import mkdtemp
-
 from contextlib import contextmanager
+from tempfile import mkdtemp
 
 
 @contextmanager
@@ -44,16 +45,14 @@ def mkdirs(path, mode):
 
     :param path: The directory to create
     :type path: str
-    :param mode: The mode to give to the directory e.g. 0o755
+    :param mode: The mode to give to the directory e.g. 0o755, ignores umask
     :type mode: int
-    :return: A list of directories that were created
-    :rtype: list[str]
     """
-    if not path or os.path.exists(path):
-        return []
-    (head, _) = os.path.split(path)
-    res = mkdirs(head, mode)
-    os.mkdir(path)
-    os.chmod(path, mode)
-    res += [path]
-    return res
+    try:
+        o_umask = os.umask(0)
+        os.makedirs(path, mode)
+    except OSError:
+        if not os.path.isdir(path):
+            raise
+    finally:
+        os.umask(o_umask)
